@@ -1,0 +1,172 @@
+openapi: 3.0.0
+info:
+  title: Document Embedding API
+  description: API para upload, busca semântica e listagem de documentos com embeddings vetoriais.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:3000
+
+paths:
+  /api/data:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Hello, World!
+
+  /upload:
+    post:
+      summary: Upload e indexação de documento
+      description: Aceita arquivos PDF ou texto. Extrai o conteúdo, gera embedding e armazena no banco.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Arquivo processado com sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: File uploaded and embedded successfully
+        '400':
+          description: Erro na requisição
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /ask:
+    post:
+      summary: Busca semântica em documento específico
+      description: Busca o trecho mais similar à pergunta dentro de um documento específico pelo ID.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [question, doc_id]
+              properties:
+                question:
+                  type: string
+                  example: O que é machine learning?
+                doc_id:
+                  type: integer
+                  example: 1
+      responses:
+        '200':
+          description: Resultado da busca
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchesResponse'
+        '400':
+          description: Parâmetros ausentes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /ask_all:
+    post:
+      summary: Busca semântica em todos os documentos
+      description: Retorna os 3 trechos mais similares à pergunta entre todos os documentos indexados.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [question]
+              properties:
+                question:
+                  type: string
+                  example: O que é machine learning?
+      responses:
+        '200':
+          description: Resultados da busca
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchesResponse'
+        '400':
+          description: Pergunta ausente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /documents:
+    get:
+      summary: Lista todos os documentos indexados
+      responses:
+        '200':
+          description: Lista de documentos
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  documents:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          example: 1
+                        filename:
+                          type: string
+                          example: relatorio.pdf
+
+components:
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          example: No question provided
+
+    MatchResult:
+      type: object
+      properties:
+        filename:
+          type: string
+          example: relatorio.pdf
+        content:
+          type: string
+          example: Trecho relevante do documento...
+        distance:
+          type: number
+          format: float
+          example: 0.312
+
+    MatchesResponse:
+      type: object
+      properties:
+        matches:
+          type: array
+          items:
+            $ref: '#/components/schemas/MatchResult'

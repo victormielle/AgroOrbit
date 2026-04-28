@@ -151,4 +151,4 @@ if __name__ == "__main__":
         with conn.cursor() as cur:
             cur.execute("SELECT version();")
             print(cur.fetchone())
-    app.run(host="0.0.0.0", port=5000, debug=True, use_reloader=False)
+    app.run(host="0.0.0.0", port=3000, debug=True, use_reloader=False)
