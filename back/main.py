@@ -44,6 +44,16 @@ def get_data():
     # Your code to retrieve and return data
     return jsonify({"message": "Hello, World!"})
 
+CHUNK_SIZE = 500
+CHUNK_OVERLAP = 50
+
+def split_chunks(text, size=CHUNK_SIZE, overlap=CHUNK_OVERLAP):
+    chunks, start = [], 0
+    while start < len(text):
+        chunks.append(text[start:start + size].strip())
+        start += size - overlap
+    return [c for c in chunks if c]
+
 @app.route('/upload', methods=['POST'])
 def upload_file():
     if 'file' not in request.files:
@@ -60,15 +70,19 @@ def upload_file():
             return jsonify({'error': f'Erro ao ler PDF: {e}'}), 400
     else:
         content = file.read().decode('utf-8')
-    embedding = get_embedding(content)
+
+    chunks = split_chunks(content)
     with get_conn() as conn:
         with conn.cursor() as cur:
-            cur.execute(
-                "INSERT INTO documents (filename, content, embedding) VALUES (%s, %s, %s)",
-                (file.filename, content, embedding.tolist())
-            )
+            cur.execute("DELETE FROM documents WHERE filename = %s", (file.filename,))
+            for chunk in chunks:
+                emb = get_embedding(chunk)
+                cur.execute(
+                    "INSERT INTO documents (filename, content, embedding) VALUES (%s, %s, %s)",
+                    (file.filename, chunk, emb.tolist())
+                )
             conn.commit()
-    return jsonify({'message': 'File uploaded and embedded successfully'})
+    return jsonify({'message': f'File uploaded and indexed in {len(chunks)} chunks'})
 
 # Carregue o modelo uma vez (fora da função)
 embedder = SentenceTransformer('all-MiniLM-L6-v2')
@@ -86,6 +100,14 @@ def ask():
         return jsonify({'error': 'No question provided'}), 400
     if not doc_id:
         return jsonify({'error': 'No document selected'}), 400
+    # Resolve filename pelo id (qualquer chunk do doc)
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT filename FROM documents WHERE id = %s", (doc_id,))
+            row = cur.fetchone()
+    if not row:
+        return jsonify({'error': 'Document not found'}), 404
+    filename = row[0]
     q_emb = get_embedding(question)
     vector_str = '[' + ','.join(str(x) for x in q_emb.tolist()) + ']'
     with get_conn() as conn:
@@ -94,18 +116,14 @@ def ask():
                 """
                 SELECT filename, content, embedding <-> %s::vector AS distance
                 FROM documents
-                WHERE id = %s
+                WHERE filename = %s
                 ORDER BY embedding <-> %s::vector ASC
-                LIMIT 1
+                LIMIT 3
                 """,
-                (vector_str, doc_id, vector_str)
+                (vector_str, filename, vector_str)
             )
             results = cur.fetchall()
-    docs = [
-        {'filename': r[0], 'content': r[1], 'distance': float(r[2])}
-        for r in results
-    ]
-    print(docs)
+    docs = [{'filename': r[0], 'content': r[1], 'distance': float(r[2])} for r in results]
     return jsonify({'matches': docs})
 
 @app.route('/ask_all', methods=['POST'])
@@ -138,7 +156,7 @@ def ask_all():
 def list_documents():
     with get_conn() as conn:
         with conn.cursor() as cur:
-            cur.execute("SELECT id, filename FROM documents ORDER BY id DESC")
+            cur.execute("SELECT MIN(id), filename FROM documents GROUP BY filename ORDER BY MIN(id) DESC")
             docs = [{'id': row[0], 'filename': row[1]} for row in cur.fetchall()]
     return jsonify({'documents': docs})
 
