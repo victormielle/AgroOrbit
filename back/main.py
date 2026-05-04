@@ -6,6 +6,8 @@ import numpy as np
 from sentence_transformers import SentenceTransformer
 from flask_cors import CORS
 import PyPDF2
+from transformers import AutoModelForCausalLM, AutoTokenizer
+import torch
 
 app = Flask(__name__)
 CORS(app, origins=["*"], allow_headers="*", supports_credentials=True)
@@ -158,6 +160,77 @@ def list_documents():
             cur.execute("SELECT MIN(id), filename FROM documents GROUP BY filename ORDER BY MIN(id) DESC")
             docs = [{'id': row[0], 'filename': row[1]} for row in cur.fetchall()]
     return jsonify({'documents': docs})
+
+# --- LLM Local ---
+LLM_MODEL_NAME = os.getenv("LLM_MODEL", "HuggingFaceTB/SmolLM2-360M-Instruct")
+print(f"Carregando LLM: {LLM_MODEL_NAME}...")
+tokenizer = AutoTokenizer.from_pretrained(LLM_MODEL_NAME)
+llm = AutoModelForCausalLM.from_pretrained(LLM_MODEL_NAME, torch_dtype=torch.float32)
+llm.eval()
+print("LLM carregado!")
+
+def generate_response(prompt, max_new_tokens=512):
+    inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=2048)
+    with torch.no_grad():
+        outputs = llm.generate(
+            **inputs,
+            max_new_tokens=max_new_tokens,
+            do_sample=True,
+            temperature=0.7,
+            top_p=0.9,
+            pad_token_id=tokenizer.eos_token_id,
+        )
+    return tokenizer.decode(outputs[0][inputs["input_ids"].shape[1]:], skip_special_tokens=True)
+
+def search_context(question, top_k=3):
+    """Busca chunks relevantes no pgvector."""
+    q_emb = get_embedding(question)
+    vector_str = '[' + ','.join(str(x) for x in q_emb.tolist()) + ']'
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """SELECT filename, content, embedding <-> %s::vector AS distance
+                   FROM documents ORDER BY embedding <-> %s::vector ASC LIMIT %s""",
+                (vector_str, vector_str, top_k)
+            )
+            return cur.fetchall()
+
+@app.route('/chat', methods=['POST'])
+def chat():
+    data = request.get_json()
+    question = data.get('question', '').strip()
+    if not question:
+        return jsonify({'error': 'No question provided'}), 400
+
+    top_k = int(data.get('top_k', 3))
+    results = search_context(question, top_k)
+
+    if results:
+        context = "\n\n".join(f"[{r[0]}]: {r[1]}" for r in results)
+        prompt = f"""<|im_start|>system
+Você é um assistente inteligente. Use APENAS o contexto abaixo para responder. Se não souber, diga que não encontrou informação suficiente nos documentos.
+
+Contexto:
+{context}
+<|im_end|>
+<|im_start|>user
+{question}
+<|im_end|>
+<|im_start|>assistant
+"""
+    else:
+        prompt = f"""<|im_start|>system
+Você é um assistente inteligente. Não há documentos carregados ainda. Responda de forma útil.
+<|im_end|>
+<|im_start|>user
+{question}
+<|im_end|>
+<|im_start|>assistant
+"""
+
+    answer = generate_response(prompt)
+    sources = [{'filename': r[0], 'content': r[1][:200], 'distance': float(r[2])} for r in results] if results else []
+    return jsonify({'answer': answer, 'sources': sources})
 
 # Inicializar tabela vetorial ao iniciar
 init_vector_table()

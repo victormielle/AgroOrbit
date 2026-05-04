@@ -1,3 +1,4 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
 Flask==3.0.0
 gunicorn==21.2.0
 psycopg[binary]
@@ -6,5 +7,6 @@ sentence-transformers
 python-dotenv
 numpy
 flask-cors
-
-
+transformers
+torch
+accelerate

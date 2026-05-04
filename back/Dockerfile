@@ -12,4 +12,4 @@ COPY . .
 RUN adduser --disabled-password --gecos '' appuser && chown -R appuser /app
 USER appuser
 
-CMD ["gunicorn", "main:app", "-w", "2", "-b", "0.0.0.0:8000", "--timeout", "120", "--preload"]
+CMD ["gunicorn", "main:app", "-w", "1", "-b", "0.0.0.0:8000", "--timeout", "300", "--preload"]
