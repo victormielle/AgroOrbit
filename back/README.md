@@ -34,11 +34,12 @@ python3.11 get-pip.py --user
 
 ```bash
 # Criar diretório do projeto
-mkdir -p /home/ubuntu/sompo_app
-cd /home/ubuntu/sompo_app
+mkdir -p /home/ubuntu/aula2_api
+cd /home/ubuntu/aula2_api
 
 # Clonar o repositório
-git clone seu-repositorio.git .
+git clone https://github.com/arquitetoitamar/aula-2-api.git .
+cd back
 
 # Criar ambiente virtual
 python3.11 -m venv venv
@@ -68,32 +69,32 @@ sudo systemctl start supervisor
 sudo systemctl enable supervisor
 
 # Criar arquivo de configuração
-sudo nano /etc/supervisor/conf.d/sompo_app.conf
+sudo nano /etc/supervisor/conf.d/aula2_api.conf
 ```
 
-Conteúdo do arquivo `sompo_app.conf`:
+Conteúdo do arquivo `aula2_api.conf`:
 
 ```ini
-[program:sompo_app]
-directory=/home/ubuntu/sompo_app
-command=/home/ubuntu/sompo_app/venv/bin/gunicorn --workers 3 --bind 0.0.0.0:8000 main:app
+[program:aula2_api]
+directory=/home/ubuntu/aula2_api
+command=/home/ubuntu/aula2_api/venv/bin/gunicorn --workers 3 --bind 0.0.0.0:8000 main:app
 autostart=true
 autorestart=true
-stderr_logfile=/var/log/sompo_app/sompo_app.err.log
-stdout_logfile=/var/log/sompo_app/sompo_app.out.log
+stderr_logfile=/var/log/aula2_api/aula2_api.err.log
+stdout_logfile=/var/log/aula2_api/aula2_api.out.log
 user=ubuntu
 environment=FLASK_ENV="production",FLASK_APP="main.py"
 ```
 
 ```bash
 # Criar diretório para logs
-sudo mkdir -p /var/log/sompo_app
-sudo chown -R ubuntu:ubuntu /var/log/sompo_app
+sudo mkdir -p /var/log/aula2_api
+sudo chown -R ubuntu:ubuntu /var/log/aula2_api
 
 # Recarregar supervisor
 sudo supervisorctl reread
 sudo supervisorctl update
-sudo supervisorctl start sompo_app
+sudo supervisorctl start aula2_api
 ```
 
 ## 7. Configurar Nginx como Proxy Reverso
@@ -103,10 +104,10 @@ sudo supervisorctl start sompo_app
 sudo apt install -y nginx
 
 # Configurar Nginx
-sudo nano /etc/nginx/sites-available/sompo_app
+sudo nano /etc/nginx/sites-available/aula2_api
 ```
 
-Conteúdo do arquivo `sompo_app`:
+Conteúdo do arquivo `aula2_api`:
 
 ```nginx
 server {
@@ -124,7 +125,7 @@ server {
 
 ```bash
 # Ativar o site
-sudo ln -s /etc/nginx/sites-available/sompo_app /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/aula2_api /etc/nginx/sites-enabled/
 sudo rm -f /etc/nginx/sites-enabled/default
 
 # Testar configuração do Nginx
@@ -146,6 +147,7 @@ sudo ufw enable
 ```
 
 Se estiver usando AWS, configure também o Security Group na console:
+
 1. Abrir porta 80 (HTTP)
 2. Abrir porta 443 (HTTPS) se usar SSL
 3. Manter porta 22 (SSH) aberta apenas para IPs confiáveis
@@ -154,8 +156,8 @@ Se estiver usando AWS, configure também o Security Group na console:
 
 ```bash
 # Logs do Supervisor
-sudo tail -f /var/log/sompo_app/sompo_app.out.log
-sudo tail -f /var/log/sompo_app/sompo_app.err.log
+sudo tail -f /var/log/aula2_api/aula2_api.out.log
+sudo tail -f /var/log/aula2_api/aula2_api.err.log
 
 # Logs do Nginx
 sudo tail -f /var/log/nginx/access.log
@@ -166,7 +168,7 @@ sudo tail -f /var/log/nginx/error.log
 
 ```bash
 # Reiniciar a aplicação
-sudo supervisorctl restart sompo_app
+sudo supervisorctl restart aula2_api
 
 # Ver status da aplicação
 sudo supervisorctl status
@@ -175,7 +177,7 @@ sudo supervisorctl status
 sudo systemctl restart nginx
 
 # Ver logs em tempo real
-sudo tail -f /var/log/sompo_app/sompo_app.out.log
+sudo tail -f /var/log/aula2_api/aula2_api.out.log
 ```
 
 ## 11. SSL/HTTPS (Opcional)
@@ -193,6 +195,7 @@ sudo certbot --nginx -d seu-dominio.com
 ## 12. Monitoramento
 
 Recomendado configurar:
+
 - AWS CloudWatch para métricas do servidor (se EC2)
 - AWS CloudWatch Logs para centralizar logs
 - Configurar alarmes para CPU, memória e disco
@@ -200,14 +203,17 @@ Recomendado configurar:
 ## Troubleshooting
 
 1. Se a aplicação não iniciar:
-   - Verificar logs: `sudo tail -f /var/log/sompo_app/sompo_app.err.log`
-   - Verificar permissões: `ls -la /home/ubuntu/sompo_app`
-   - Verificar variáveis de ambiente
 
+   - Verificar logs: `sudo tail -f /var/log/aula2_api/aula2_api.err.log`
+   - Verificar permissões: `ls -la /home/ubuntu/aula2_api`
+   - Verificar variáveis de ambiente
 2. Se Nginx retornar 502:
+
    - Verificar se Gunicorn está rodando: `ps aux | grep gunicorn`
    - Verificar logs do Nginx: `sudo tail -f /var/log/nginx/error.log`
-
 3. Problemas de permissão:
-   - Verificar owner dos arquivos: `ls -la /home/ubuntu/sompo_app`
-   - Ajustar se necessário: `sudo chown -R ubuntu:ubuntu /home/ubuntu/sompo_app`
+
+   - Verificar owner dos arquivos: `ls -la /home/ubuntu/aula2_api`
+   - Ajustar se necessário: `sudo chown -R ubuntu:ubuntu /home/ubuntu/aula2_api`
+
+

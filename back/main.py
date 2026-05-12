@@ -165,11 +165,11 @@ def list_documents():
 LLM_MODEL_NAME = os.getenv("LLM_MODEL", "HuggingFaceTB/SmolLM2-360M-Instruct")
 print(f"Carregando LLM: {LLM_MODEL_NAME}...")
 tokenizer = AutoTokenizer.from_pretrained(LLM_MODEL_NAME)
-llm = AutoModelForCausalLM.from_pretrained(LLM_MODEL_NAME, torch_dtype=torch.float32)
+llm = AutoModelForCausalLM.from_pretrained(LLM_MODEL_NAME, dtype=torch.float32)
 llm.eval()
 print("LLM carregado!")
 
-def generate_response(prompt, max_new_tokens=512):
+def generate_response(prompt, max_new_tokens=200):
     inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=2048)
     with torch.no_grad():
         outputs = llm.generate(
@@ -206,9 +206,9 @@ def chat():
     results = search_context(question, top_k)
 
     if results:
-        context = "\n\n".join(f"[{r[0]}]: {r[1]}" for r in results)
+        context = "\n\n".join(f"{r[1]}" for r in results)
         prompt = f"""<|im_start|>system
-Você é um assistente inteligente. Use APENAS o contexto abaixo para responder. Se não souber, diga que não encontrou informação suficiente nos documentos.
+Responda em português brasileiro. Use apenas o contexto fornecido.
 
 Contexto:
 {context}
@@ -220,7 +220,7 @@ Contexto:
 """
     else:
         prompt = f"""<|im_start|>system
-Você é um assistente inteligente. Não há documentos carregados ainda. Responda de forma útil.
+Responda em português brasileiro de forma útil e direta.
 <|im_end|>
 <|im_start|>user
 {question}
