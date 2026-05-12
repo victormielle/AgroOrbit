@@ -5,6 +5,15 @@ theme:
   language: pt-BR
   features:
     - navigation.expand
+  palette:
+    - scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Modo escuro
+    - scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Modo claro
 
 nav:
   - Guia de Implementação:
