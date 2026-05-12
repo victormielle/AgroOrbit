@@ -1,5 +1,7 @@
 # Plataforma Cognitiva - Guia de Implementação
 
+![Sistema em funcionamento](sistema.jpeg)
+
 Bem-vindo ao guia de implementação da **Plataforma Cognitiva**! Esta é uma API RESTful de busca semântica e chat com IA, construída com Flask, PostgreSQL/pgvector e modelos de linguagem locais.
 
 ## Visão Geral
