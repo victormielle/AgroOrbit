@@ -1,47 +1,48 @@
-# Configuração do Ambiente no EC2
+# Configuração do Ambiente no Ubuntu
 
-Este guia explica como configurar o ambiente de produção para a aplicação Flask em uma instância EC2 da AWS.
+Este guia explica como configurar o ambiente de produção para a aplicação Flask em um servidor Ubuntu (ex: EC2 com Ubuntu AMI).
 
-## 1. Conectar ao EC2
+## 1. Conectar ao Servidor
 
 ```bash
-ssh -i "sua-chave.pem" ec2-user@seu-ip-ec2
+ssh -i "sua-chave.pem" ubuntu@seu-ip-servidor
 ```
 
 ## 2. Atualizar o Sistema
 
 ```bash
-sudo yum update -y
+sudo apt update && sudo apt upgrade -y
 ```
 
 ## 3. Instalar Python e Dependências
 
 ```bash
-# Instalar Python 3.11
-sudo yum install -y python3.11
-sudo alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
-sudo alternatives --set python3 /usr/bin/python3.11
+# Instalar dependências base
+sudo apt install -y software-properties-common
+
+# Adicionar repositório e instalar Python 3.11
+sudo add-apt-repository ppa:deadsnakes/python3.11 -y
+sudo apt update
+sudo apt install -y python3.11 python3.11-venv python3.11-distutils
 
 # Instalar pip
 curl -O https://bootstrap.pypa.io/get-pip.py
-python3 get-pip.py --user
-
-# Instalar virtualenv
-pip3 install --user virtualenv
+python3.11 get-pip.py --user
 ```
 
 ## 4. Configurar o Projeto
 
 ```bash
 # Criar diretório do projeto
-mkdir -p /home/ec2-user/sompo_app
-cd /home/ec2-user/sompo_app
+mkdir -p /home/ubuntu/aula2_api
+cd /home/ubuntu/aula2_api
 
-# Clonar o repositório (se estiver usando git)
-git clone seu-repositorio.git .
+# Clonar o repositório
+git clone https://github.com/arquitetoitamar/aula-2-api.git .
+cd back
 
 # Criar ambiente virtual
-python3 -m venv venv
+python3.11 -m venv venv
 source venv/bin/activate
 
 # Instalar dependências
@@ -63,54 +64,50 @@ gunicorn -w 4 -b 0.0.0.0:8000 main:app
 
 ```bash
 # Instalar Supervisor
-sudo yum install -y supervisor
-sudo service supervisord start
-sudo chkconfig supervisord on
+sudo apt install -y supervisor
+sudo systemctl start supervisor
+sudo systemctl enable supervisor
 
 # Criar arquivo de configuração
-sudo nano /etc/supervisord.d/sompo_app.ini
+sudo nano /etc/supervisor/conf.d/aula2_api.conf
 ```
 
-Conteúdo do arquivo `sompo_app.ini`:
+Conteúdo do arquivo `aula2_api.conf`:
 
 ```ini
-[program:sompo_app]
-directory=/home/ec2-user/sompo_app
-command=/home/ec2-user/sompo_app/venv/bin/gunicorn --workers 3 --bind 0.0.0.0:8000 main:app
+[program:aula2_api]
+directory=/home/ubuntu/aula2_api
+command=/home/ubuntu/aula2_api/venv/bin/gunicorn --workers 3 --bind 0.0.0.0:8000 main:app
 autostart=true
 autorestart=true
-stderr_logfile=/var/log/sompo_app/sompo_app.err.log
-stdout_logfile=/var/log/sompo_app/sompo_app.out.log
-user=ec2-user
-
-[supervisord]
-environment=
-    FLASK_ENV="production",
-    FLASK_APP="main.py"
+stderr_logfile=/var/log/aula2_api/aula2_api.err.log
+stdout_logfile=/var/log/aula2_api/aula2_api.out.log
+user=ubuntu
+environment=FLASK_ENV="production",FLASK_APP="main.py"
 ```
 
 ```bash
 # Criar diretório para logs
-sudo mkdir -p /var/log/sompo_app
-sudo chown -R ec2-user:ec2-user /var/log/sompo_app
+sudo mkdir -p /var/log/aula2_api
+sudo chown -R ubuntu:ubuntu /var/log/aula2_api
 
 # Recarregar supervisor
 sudo supervisorctl reread
 sudo supervisorctl update
-sudo supervisorctl start sompo_app
+sudo supervisorctl start aula2_api
 ```
 
 ## 7. Configurar Nginx como Proxy Reverso
 
 ```bash
 # Instalar Nginx
-sudo amazon-linux-extras install nginx1
+sudo apt install -y nginx
 
 # Configurar Nginx
-sudo nano /etc/nginx/conf.d/sompo_app.conf
+sudo nano /etc/nginx/sites-available/aula2_api
 ```
 
-Conteúdo do arquivo `sompo_app.conf`:
+Conteúdo do arquivo `aula2_api`:
 
 ```nginx
 server {
@@ -127,6 +124,10 @@ server {
 ```
 
 ```bash
+# Ativar o site
+sudo ln -s /etc/nginx/sites-available/aula2_api /etc/nginx/sites-enabled/
+sudo rm -f /etc/nginx/sites-enabled/default
+
 # Testar configuração do Nginx
 sudo nginx -t
 
@@ -135,9 +136,18 @@ sudo systemctl start nginx
 sudo systemctl enable nginx
 ```
 
-## 8. Configurar o Firewall (Security Group)
+## 8. Configurar o Firewall
 
-Na AWS Console:
+```bash
+# Habilitar UFW e liberar portas necessárias
+sudo ufw allow OpenSSH
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+sudo ufw enable
+```
+
+Se estiver usando AWS, configure também o Security Group na console:
+
 1. Abrir porta 80 (HTTP)
 2. Abrir porta 443 (HTTPS) se usar SSL
 3. Manter porta 22 (SSH) aberta apenas para IPs confiáveis
@@ -146,8 +156,8 @@ Na AWS Console:
 
 ```bash
 # Logs do Supervisor
-sudo tail -f /var/log/sompo_app/sompo_app.out.log
-sudo tail -f /var/log/sompo_app/sompo_app.err.log
+sudo tail -f /var/log/aula2_api/aula2_api.out.log
+sudo tail -f /var/log/aula2_api/aula2_api.err.log
 
 # Logs do Nginx
 sudo tail -f /var/log/nginx/access.log
@@ -158,7 +168,7 @@ sudo tail -f /var/log/nginx/error.log
 
 ```bash
 # Reiniciar a aplicação
-sudo supervisorctl restart sompo_app
+sudo supervisorctl restart aula2_api
 
 # Ver status da aplicação
 sudo supervisorctl status
@@ -167,7 +177,7 @@ sudo supervisorctl status
 sudo systemctl restart nginx
 
 # Ver logs em tempo real
-sudo tail -f /var/log/sompo_app/sompo_app.out.log
+sudo tail -f /var/log/aula2_api/aula2_api.out.log
 ```
 
 ## 11. SSL/HTTPS (Opcional)
@@ -176,7 +186,7 @@ Para configurar HTTPS com Certbot:
 
 ```bash
 # Instalar Certbot
-sudo yum install -y certbot python3-certbot-nginx
+sudo apt install -y certbot python3-certbot-nginx
 
 # Obter certificado e configurar Nginx
 sudo certbot --nginx -d seu-dominio.com
@@ -185,51 +195,25 @@ sudo certbot --nginx -d seu-dominio.com
 ## 12. Monitoramento
 
 Recomendado configurar:
-- AWS CloudWatch para métricas do EC2
+
+- AWS CloudWatch para métricas do servidor (se EC2)
 - AWS CloudWatch Logs para centralizar logs
 - Configurar alarmes para CPU, memória e disco
 
 ## Troubleshooting
 
 1. Se a aplicação não iniciar:
-   - Verificar logs: `sudo tail -f /var/log/sompo_app/sompo_app.err.log`
-   - Verificar permissões: `ls -la /home/ec2-user/sompo_app`
-   - Verificar variáveis de ambiente
 
+   - Verificar logs: `sudo tail -f /var/log/aula2_api/aula2_api.err.log`
+   - Verificar permissões: `ls -la /home/ubuntu/aula2_api`
+   - Verificar variáveis de ambiente
 2. Se Nginx retornar 502:
+
    - Verificar se Gunicorn está rodando: `ps aux | grep gunicorn`
    - Verificar logs do Nginx: `sudo tail -f /var/log/nginx/error.log`
-
 3. Problemas de permissão:
-   - Verificar owner dos arquivos: `ls -la /home/ec2-user/sompo_app`
-   - Ajustar se necessário: `sudo chown -R ec2-user:ec2-user /home/ec2-user/sompo_app`
+
+   - Verificar owner dos arquivos: `ls -la /home/ubuntu/aula2_api`
+   - Ajustar se necessário: `sudo chown -R ubuntu:ubuntu /home/ubuntu/aula2_api`
 
 
-Conexão ao EC2
-Atualização do sistema
-Instalação do Python e dependências
-Configuração do projeto
-Configuração do Gunicorn
-Configuração do Supervisor
-Configuração do Nginx como proxy reverso
-Configuração do Firewall (Security Groups)
-Monitoramento de logs
-Comandos úteis
-Configuração opcional de SSL/HTTPS
-Monitoramento com CloudWatch
-Seção de troubleshooting
-A configuração usa as melhores práticas:
-
-Gunicorn como servidor WSGI
-Supervisor para gerenciar processos
-Nginx como proxy reverso
-Logs centralizados
-Sistema de processos resiliente
-Opção para SSL/HTTPS
-Siga as instruções em ordem para ter um ambiente de produção robusto e seguro. Lembre-se de ajustar as configurações conforme suas necessidades específicas, especialmente:
-
-Domínios
-Portas
-Variáveis de ambiente
-Security Groups
-Configurações de SSL se necessário
