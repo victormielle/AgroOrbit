@@ -6,7 +6,12 @@ Um assistente de IA que responde perguntas com base em documentos, usando RAG (R
 
 ---
 
-## 👥 Integrantes
+## Demo
+
+Veja o agente em funcionamento — upload de documento e chat com RAG:
+Link: https://youtu.be/Z2xl7VjRZSo
+
+## Integrantes
 
 | Nome | RM |
 |------|----|
@@ -15,7 +20,7 @@ Um assistente de IA que responde perguntas com base em documentos, usando RAG (R
 
 ---
 
-## 🏗️ Arquitetura
+## Arquitetura
 
 ```
 Usuário → S3 Frontend → EC2 (Flask + LLM) → RDS PostgreSQL (pgvector)
@@ -35,7 +40,7 @@ CSV → S3 incoming/ → Lambda fn-s3-to-pgvector → RDS → CloudWatch
 
 ---
 
-## 🚀 Como Rodar
+##  Como Rodar
 
 ### Pré-requisitos
 - Conta AWS com EC2, RDS e S3 configurados
@@ -89,7 +94,7 @@ curl http://localhost:8000/api/data
 
 ---
 
-## 📡 Endpoints da API
+##  Endpoints da API
 
 | Método | Endpoint | Descrição |
 |--------|----------|-----------|
@@ -102,7 +107,7 @@ curl http://localhost:8000/api/data
 
 ---
 
-## 🤖 Stack Tecnológica
+##  Stack Tecnológica
 
 - **Python + Flask** — API web
 - **Gunicorn** — WSGI server para produção
@@ -114,7 +119,7 @@ curl http://localhost:8000/api/data
 
 ---
 
-## 🔧 Problemas Conhecidos e Soluções
+##  Problemas Conhecidos e Soluções
 
 | Problema | Causa | Solução |
 |----------|-------|---------|
@@ -125,7 +130,7 @@ curl http://localhost:8000/api/data
 
 ---
 
-## 📁 Estrutura do Projeto
+##  Estrutura do Projeto
 
 ```
 AgroOrbit/
@@ -142,6 +147,6 @@ AgroOrbit/
 
 ---
 
-## 📄 Licença
+##  Licença
 
 Projeto acadêmico — FIAP Global Solution 2026.
