@@ -8,8 +8,7 @@ Um assistente de IA que responde perguntas com base em documentos, usando RAG (R
 
 ## Demo
 
-Veja o agente em funcionamento — upload de documento e chat com RAG:
-Link: https://youtu.be/Z2xl7VjRZSo
+Veja o agente em funcionamento — chat com RAG: https://youtu.be/Z2xl7VjRZSo
 
 ## Integrantes
 
